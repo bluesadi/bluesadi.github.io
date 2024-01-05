@@ -5,15 +5,15 @@
 # Site
 title: 34r7hm4n's blog
 subtitle: ''
-description: 'Hey, guys! I am an incoming PhD student at SEFCOM. I am interested in many aspects of software security and system security. For more details about me, see: <a href=https://bluesadi.me>bluesadi.me</a>'
+description: 'I am a first year PhD student in <a href=https://sefcom.asu.edu/>SEFCOM</a> at Arizona State University. My research foucses on reverse engineering and decompilation. Meanwhile I am proactively exploring different fields of computer science.'
 keywords:
 author: 'Yibo Liu'
 language: en
-timezone: ''
+timezone: 'America/Phoenix'
 
 # URL
 ## Set your site url here. For example, if you use GitHub Page, set url as 'https://username.github.io/project'
-url: http://example.com
+url: https://bluesadi
 permalink: :year/:month/:day/:title/
 permalink_defaults:
 pretty_urls:
