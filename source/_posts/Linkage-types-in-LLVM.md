@@ -4,7 +4,7 @@ date: 2024-01-05 00:08:08
 tags:
 ---
 
-Like many other C/C++ compilers, LLVM also needs to inform linker (ld, lld, etc.) how to merge the global values (global variables, functions, and declarations) of different modules (one module in LLVM corresponds to one object file or one translation unit) at link-time. In LLVM, global values can be divided into 10 categories according to their linkage types. The linker will treat each type of global value differently based on their linkage types. Not considering the linkage types of global values when writing a LLVM Pass may result in unexpected behaviors, especially when you are manipulating the global variables by a Module Pass. In this post, I will demystify the 10 linkage types in LLVM to help you write more robust LLVM Passes.
+Like many other C/C++ compilers, LLVM also needs to inform the linker (ld, lld, etc.) how to merge global values (global variables, functions) of different modules (one module in LLVM corresponds to one object file or one translation unit for linker) at link-time. In LLVM, global values can be divided into 10 categories according to their linkage types. The linker will treat each type of global values differently based on their linkage types. Not considering the linkage types of global values when writing a LLVM Pass may result in unexpected behaviors, especially when you are manipulating the global variables by a Module Pass. In this post, I will demystify the 10 linkage types in LLVM to help you write more robust LLVM Passes.
 
 <!-- more -->
 
@@ -138,11 +138,11 @@ These two arrays are combined into one array with two functions after linked by 
 ```
 
 
-## LinkOnceLinkage & LinkOnceODRLinkage
+## LinkOnceAnyLinkage & LinkOnceODRLinkage
 
-LinkOnce/LinkOnceODR linkage is used to implement inline and template functions. The difference between inline/template functions and normal functions is that inline/template functions must be defined in each translation unit that uses this function.
+LinkOnceAnyLinkage/LinkOnceODRLinkage is used to implement inline and template functions. The difference between inline/template functions and normal functions is that inline/template functions must be defined in each translation unit that uses this function.
 
-LinkOnce and LinkOnceODR are very similar, but LinkOnce linkage allows nonequivalent global values to be merged, which is a feature that is not required by inline/template functions (clang and gcc don't actually check whether two global values are equivalent though). In my experience, LinkOnceODRLinkage is far more common than LinkOnceLinkage in C++. For more information about ODR: [Definitions and ODR (One Definition Rule)](https://en.cppreference.com/w/cpp/language/definition)
+LinkOnceAny and LinkOnceODR are very similar, but LinkOnceAny linkage allows nonequivalent global values to be merged, which is a feature that is not required by inline/template functions (clang and gcc don't actually check whether two global values are equivalent though). In my experience, LinkOnceODRLinkage is far more common than LinkOnceLinkage in C++. For more information about ODR: [Definitions and ODR (One Definition Rule)](https://en.cppreference.com/w/cpp/language/definition)
 
 ### Inline Function
 
@@ -222,3 +222,30 @@ define linkonce_odr dso_local noundef signext i8 @_Z5myMaxIcET_S0_S0_(i8 noundef
 Like inline function, template function should also be defined in the same translation unit with it's callers, otherwise the compiler will yield an error. Imagine that a module feeds the template functions with three different data types - int, char, and double. In return it needs three different monomorphic definitions of this function at link-time. However, when compiler compiles the module that contains the template function, the compiler doesn't know how many types of monomorphic functions it is supposed to generate! For more details: [Why Can templates only be implemented in the header file in C++](https://www.educative.io/answers/why-can-templates-only-be-implemented-in-the-header-file-in-cpp)
 
 In practice, template functions are usually written in header files so that different modules can include and use the template functions with ease. At link-time, duplicate definitions will be merged into one because they all have LinkOnceODRLinkage.
+
+## WeakAnyLinkage & WeakODRLinkage
+
+Weak linkage is almost the same as linkonce, except that unreferenced globals with weak linkage may not be discarded. In addition, weak definitions can be overrided by normal definitions. This linkage type is used for globals that are declared "weak" in C source code. 
+
+For example, in 1.cpp we have,
+```cpp
+void foo() __attribute__((weak)) { printf("Hello\n"); }
+
+int main() { foo(); }
+```
+In 2.cpp, we have,
+```cpp
+void foo() { printf("World!\n"); }
+```
+The first `foo` function will be overrided by the second one.
+
+But as far as I know, this feature is not commonly used in practice.
+
+## CommonLinkage
+Common linkage is most similar to weak linkage, but has more restrictions:
+- Symbols with common linkage must have a zero initializer
+- Symbols with common linkage may not be marked as constant
+
+According to LLVM official documents, this linkage type is used for tentative definitions in C, such as `int X;` at global scope. But I didn't see clang produces this type of global values in my experiment.
+
+## AvailableExternallyLinkage
