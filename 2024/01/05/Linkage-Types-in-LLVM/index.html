@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.0.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha256-yIDrPSXHZdOZhAqiBP7CKzIwMQmRCJ8UeB8Jo17YC4o=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"bluesadi","root":"/","images":"/images","scheme":"Pisces","darkmode":false,"version":"8.19.1","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="As many other C&#x2F;C++ compilers, LLVM also needs to tell the linker (ld, lld, etc.) how to merge the global values (global variables, functions, and declarations) of different objects at link-time.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linkage Types in LLVM">
+<meta property="og:url" content="https://bluesadi/2024/01/05/Linkage-Types-in-LLVM/index.html">
+<meta property="og:site_name" content="34r7hm4n&#39;s blog">
+<meta property="og:description" content="As many other C&#x2F;C++ compilers, LLVM also needs to tell the linker (ld, lld, etc.) how to merge the global values (global variables, functions, and declarations) of different objects at link-time.">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-01-05T07:08:08.000Z">
+<meta property="article:modified_time" content="2024-01-08T12:29:00.273Z">
+<meta property="article:author" content="Yibo Liu">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://bluesadi/2024/01/05/Linkage-Types-in-LLVM/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://bluesadi/2024/01/05/Linkage-Types-in-LLVM/","path":"2024/01/05/Linkage-Types-in-LLVM/","title":"Linkage Types in LLVM"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Linkage Types in LLVM | 34r7hm4n's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">34r7hm4n's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-PrivateLinkage"><span class="nav-number">1.</span> <span class="nav-text">1. PrivateLinkage</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-InternalLinkage"><span class="nav-number">2.</span> <span class="nav-text">2. InternalLinkage</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-ExternalLinkage"><span class="nav-number">3.</span> <span class="nav-text">3. ExternalLinkage</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yibo Liu"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">Yibo Liu</p>
+  <div class="site-description" itemprop="description">I am a first year PhD student in <a href=https://sefcom.asu.edu/>SEFCOM</a> at Arizona State University. My research foucses on reverse engineering and decompilation. Meanwhile I am proactively exploring different fields of computer science.</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">1</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/bluesadi" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;bluesadi" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yiboliu@asu.edu" title="E-Mail → mailto:yiboliu@asu.edu" rel="noopener me" target="_blank"><i class="fa fa-envelope fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://twitter.com/34r7hm4n" title="Twitter → https:&#x2F;&#x2F;twitter.com&#x2F;34r7hm4n" rel="noopener me" target="_blank"><i class="fab fa-twitter fa-fw"></i></a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://bluesadi/2024/01/05/Linkage-Types-in-LLVM/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="Yibo Liu">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="34r7hm4n's blog">
+      <meta itemprop="description" content="I am a first year PhD student in <a href=https://sefcom.asu.edu/>SEFCOM</a> at Arizona State University. My research foucses on reverse engineering and decompilation. Meanwhile I am proactively exploring different fields of computer science.">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Linkage Types in LLVM | 34r7hm4n's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linkage Types in LLVM
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 01-05-2024 00:08:08" itemprop="dateCreated datePublished" datetime="2024-01-05T00:08:08-07:00">01-05-2024</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 01-08-2024 05:29:00" itemprop="dateModified" datetime="2024-01-08T05:29:00-07:00">01-08-2024</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>As many other C&#x2F;C++ compilers, LLVM also needs to tell the linker (ld, lld, etc.) how to merge the global values (global variables, functions, and declarations) of different objects at link-time. In LLVM, global values can be divided into 10 types according to their linkage types. The linker will treat each global value differently based on their linkage types. Not considering the linkage types of global values when writing a LLVM Pass may result in unexpected behaviors, especially when you are manipulating the global variables by a Module Pass. In this post, I will demystify the 10 linkage types in LLVM to help you write more robust LLVM Passes.</p>
+<span id="more"></span>
+
+<h2 id="1-PrivateLinkage"><a href="#1-PrivateLinkage" class="headerlink" title="1. PrivateLinkage"></a>1. PrivateLinkage</h2><p>To start off, let’s have a look at the simplest linkage type in LLVM - PrivateLinkage. PrivateLinkage means the global value should only be used in current LLVM Module (one LLVM Module usually corresponds to one object file). Because private global values are local to current module, no symbol will show up in any symbol table in the object file. One typical example is constant string as shown below.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123; </span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;this is a private global variable&quot;</span>); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>After compiled to LLVM IR:</p>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="title">@.str</span> <span class="operator">=</span> <span class="keyword">private</span> <span class="keyword">unnamed_addr</span> <span class="keyword">constant</span> [<span class="number">34</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;this is a private global variable<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="comment">; Function Attrs: mustprogress noinline norecurse optnone uwtable</span></span><br><span class="line"><span class="keyword">define</span> dso_local noundef <span class="type">i32</span> <span class="title">@main</span>() <span class="variable">#0</span> &#123;</span><br><span class="line">  <span class="variable">%1</span> <span class="operator">=</span> <span class="keyword">call</span> <span class="type">i32</span> <span class="title">@puts</span>(<span class="type">i8</span>* noundef <span class="keyword">getelementptr</span> <span class="keyword">inbounds</span> ([<span class="number">34</span> <span class="keyword">x</span> <span class="type">i8</span>]<span class="punctuation">,</span> [<span class="number">34</span> <span class="keyword">x</span> <span class="type">i8</span>]* <span class="title">@.str</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span>))</span><br><span class="line">  <span class="keyword">ret</span> <span class="type">i32</span> <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>This is quite straightforward and intuitive. In C&#x2F;C++, anonymous strings can only be used in current file (more precisely, it can only be used in where it’s defined), and obviously it won’t have any symbol in the symbol table. </p>
+<p>If two objects have two private global variables with the same name, they will be renamed to avoid collision. Let’s compile two cpp files with two strings with the same name, and link then through llvm-link to get the merged LLVM IR.</p>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">; 1.ll compiled from 1.cpp</span></span><br><span class="line"><span class="title">@.str</span> <span class="operator">=</span> <span class="keyword">private</span> <span class="keyword">unnamed_addr</span> <span class="keyword">constant</span> [<span class="number">5</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;test<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">; 2.ll compiled from 2.cpp</span></span><br><span class="line"><span class="title">@.str</span> <span class="operator">=</span> <span class="keyword">private</span> <span class="keyword">unnamed_addr</span> <span class="keyword">constant</span> [<span class="number">28</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;this is a ? global variable<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">1</span></span><br></pre></td></tr></table></figure>
+<p>After linking, one of the variable is renamed:</p>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">; llvm-link -S 1.ll 2.ll</span></span><br><span class="line"><span class="title">@.str</span> <span class="operator">=</span> <span class="keyword">private</span> <span class="keyword">unnamed_addr</span> <span class="keyword">constant</span> [<span class="number">5</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;test<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">1</span></span><br><span class="line"><span class="title">@.str.1</span> <span class="operator">=</span> <span class="keyword">private</span> <span class="keyword">unnamed_addr</span> <span class="keyword">constant</span> [<span class="number">28</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;this is a ? global variable<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">1</span></span><br></pre></td></tr></table></figure>
+<h2 id="2-InternalLinkage"><a href="#2-InternalLinkage" class="headerlink" title="2. InternalLinkage"></a>2. InternalLinkage</h2><p>What if the string is named?</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">const</span> <span class="type">char</span> str[] = <span class="string">&quot;this is a ? global variable&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123; </span><br><span class="line">    <span class="built_in">puts</span>(str); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>This time the global variable’s prefix changes from private to internal, which means it has an internal linkage type. </p>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="title">@_ZL3str</span> <span class="operator">=</span> <span class="keyword">internal</span> <span class="keyword">constant</span> [<span class="number">28</span> <span class="keyword">x</span> <span class="type">i8</span>] <span class="keyword">c</span><span class="string">&quot;this is a ? global variable<span class="char escape_">\00</span>&quot;</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">16</span></span><br><span class="line"></span><br><span class="line"><span class="comment">; Function Attrs: mustprogress noinline norecurse optnone uwtable</span></span><br><span class="line"><span class="keyword">define</span> dso_local noundef <span class="type">i32</span> <span class="title">@main</span>() <span class="variable">#0</span> &#123;</span><br><span class="line">  <span class="variable">%1</span> <span class="operator">=</span> <span class="keyword">call</span> <span class="type">i32</span> <span class="title">@puts</span>(<span class="type">i8</span>* noundef <span class="keyword">getelementptr</span> <span class="keyword">inbounds</span> ([<span class="number">28</span> <span class="keyword">x</span> <span class="type">i8</span>]<span class="punctuation">,</span> [<span class="number">28</span> <span class="keyword">x</span> <span class="type">i8</span>]* <span class="title">@_ZL3str</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span>))</span><br><span class="line">  <span class="keyword">ret</span> <span class="type">i32</span> <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>InternalLinkage is similar to PrivateLinkage. The only difference is that global variables with internal linkage will show up in the symbol table as a local symbol (still can’t be used by other objects).</p>
+<p>Functions with the modifier <code>static</code> also have the InternalLinkage type:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">foo</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;test\n&quot;</span>); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">define</span> <span class="keyword">internal</span> void <span class="title">@_ZL3foov</span>() <span class="variable">#1</span> &#123;</span><br><span class="line">  <span class="variable">%1</span> <span class="operator">=</span> <span class="keyword">call</span> <span class="type">i32</span> (<span class="type">i8</span>*<span class="punctuation">,</span> ...) <span class="title">@printf</span>(<span class="type">i8</span>* noundef <span class="keyword">getelementptr</span> <span class="keyword">inbounds</span> ([<span class="number">6</span> <span class="keyword">x</span> <span class="type">i8</span>]<span class="punctuation">,</span> [<span class="number">6</span> <span class="keyword">x</span> <span class="type">i8</span>]* <span class="title">@.str.1</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span><span class="punctuation">,</span> <span class="type">i64</span> <span class="number">0</span>))</span><br><span class="line">  <span class="keyword">ret</span> void</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-ExternalLinkage"><a href="#3-ExternalLinkage" class="headerlink" title="3. ExternalLinkage"></a>3. ExternalLinkage</h2><p>ExternalLinage is also a very common linkage types. This linkage type could be very misleading in the first time. Note that ExternalLinage in LLVM is not equivalent to the <code>extern</code> keyword in C&#x2F;C++. Instead, all global values that are accessible to other objects could have ExternalLinkage, no matter whether they are defined in current module or not.</p>
+<p>These are all global variables with ExternalLinkage because they are accessible to other object files at link-time.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">extern</span> <span class="type">int</span> var1;</span><br><span class="line"><span class="type">int</span> var2 = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> ExampleNameSpace &#123;</span><br><span class="line"><span class="type">int</span> var3 = <span class="number">2</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="title">@var2</span> <span class="operator">=</span> dso_local <span class="keyword">global</span> <span class="type">i32</span> <span class="number">1</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">4</span></span><br><span class="line"><span class="title">@_ZN16ExampleNameSpace4var3E</span> <span class="operator">=</span> dso_local <span class="keyword">global</span> <span class="type">i32</span> <span class="number">2</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">4</span></span><br><span class="line"><span class="title">@var1</span> <span class="operator">=</span> <span class="keyword">external</span> dso_local <span class="keyword">global</span> <span class="type">i32</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">4</span></span><br></pre></td></tr></table></figure>
+
+<p>Global values in anonymous namespace don’t have ExternalLinkage because they are inaccessible to other modules.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">namespace</span> &#123;</span><br><span class="line"><span class="type">int</span> var4 = <span class="number">3</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight llvm"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="title">@_ZN12_GLOBAL__N_14var4E</span> <span class="operator">=</span> <span class="keyword">internal</span> <span class="keyword">global</span> <span class="type">i32</span> <span class="number">3</span><span class="punctuation">,</span> <span class="keyword">align</span> <span class="number">4</span></span><br></pre></td></tr></table></figure>
+<p>This rule also applies to functions. For conciseness of this post, I plan to not include the examples here.</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+
+        
+
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Yibo Liu</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/pisces/" rel="noopener" target="_blank">NexT.Pisces</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>
