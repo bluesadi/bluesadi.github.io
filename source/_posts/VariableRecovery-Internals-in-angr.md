@@ -2,6 +2,7 @@
 title: VariableRecovery Internals in angr
 date: 2024-04-27 11:32:30
 tags:
+mathjax: true
 ---
 
 VariableRecovery is an important component in decompilation pipeline. In this blog, we will dive into the implementation of VariableRecoveryFast in angr.
