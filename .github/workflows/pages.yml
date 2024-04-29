@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies
         run: npm install
       - name: Install Pandoc
-        run: apt install pandoc -y
+        run: sudo apt install pandoc -y
       - name: Build
         run: npm run build
       - name: Upload Pages artifact
