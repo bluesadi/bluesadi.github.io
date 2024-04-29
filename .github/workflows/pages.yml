@@ -30,6 +30,8 @@ jobs:
             ${{ runner.OS }}-npm-cache
       - name: Install Dependencies
         run: npm install
+      - name: Install Dependencies2
+        run: npm i hexo-renderer-pandoc --save
       - name: Build
         run: npm run build
       - name: Upload Pages artifact
