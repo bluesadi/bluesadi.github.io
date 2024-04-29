@@ -6,17 +6,23 @@ on:
       - main  # default branch
 
 jobs:
-  build:
+  convert_via_pandoc:
     runs-on: ubuntu-latest
     steps:
+      - uses: docker://pandoc/core:2.9
+        with:
+          args: "--help" # gets appended to pandoc command
+  build:
+    needs: convert_via_pandoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: pandoc --help
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # If your repository depends on submodule, please see: https://github.com/actions/checkout
           submodules: recursive
-      - uses: docker://pandoc/core:2.9
-        with:
-          args: "--help" # gets appended to pandoc command
       - name: Use Node.js 20.x
         uses: actions/setup-node@v2
         with:
@@ -30,8 +36,6 @@ jobs:
             ${{ runner.OS }}-npm-cache
       - name: Install Dependencies
         run: npm install
-      - name: Install Dependencies2
-        run: npm i hexo-renderer-pandoc --save
       - name: Build
         run: npm run build
       - name: Upload Pages artifact
