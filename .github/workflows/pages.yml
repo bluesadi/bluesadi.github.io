@@ -6,21 +6,10 @@ on:
       - main  # default branch
 
 jobs:
-  convert_via_pandoc:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: docker://pandoc/core:2.9
-        with:
-          args: "--help" # gets appended to pandoc command
   build:
     needs: convert_via_pandoc
     runs-on: ubuntu-latest
     steps:
-      - uses: docker://pandoc/core:2.9
-        with:
-          args: "--help" # gets appended to pandoc command
-      - name: Test
-        run: pandoc --help
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -39,6 +28,8 @@ jobs:
             ${{ runner.OS }}-npm-cache
       - name: Install Dependencies
         run: npm install
+      - name: Install Pandoc
+        run: apt install pandoc -y
       - name: Build
         run: npm run build
       - name: Upload Pages artifact
