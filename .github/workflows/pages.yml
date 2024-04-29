@@ -6,8 +6,14 @@ on:
       - main  # default branch
 
 jobs:
-  build:
+  convert_via_pandoc:
     runs-on: ubuntu-latest
+    steps:
+      - uses: docker://pandoc/core:2.9
+        with:
+          args: "--help" # gets appended to pandoc command
+  build:
+    needs: convert_via_pandoc
     steps:
       - uses: actions/checkout@v3
         with:
