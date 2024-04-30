@@ -33,7 +33,10 @@ def _variable(self, variable: SimVariable, fallback_type_size: Optional[int]) ->
 
 ## Dive Into the Engine
 Basically, VariableRecoveryFast traverses all the blocks in a function, for each block, the statements in the block are handled by [SimEngineVRAIL](https://github.com/angr/angr/blob/69f5da7f6b45bb27f3ff69c299871f8cf79b140f/angr/analyses/variable_recovery/engine_ail.py#L26) sequentially. Each statement will be handled by different handler function in the engine based on the statement type. 
+
 ### _ail_handle_assignment
-$$\begin{equation} \label{eq1}
-dst = src (dst and src should be Register or Tmp)
-\end{equation}$$
+An assignment statement is define as below:
+$$
+dst = src\\
+\text{ (dst should be Register or Tmp, src could be any expression)}
+$$
