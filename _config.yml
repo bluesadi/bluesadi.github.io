@@ -5,7 +5,7 @@
 # Site
 title: 34r7hm4n's blog
 subtitle: ''
-description: 'I am a first year PhD student in <a href=https://sefcom.asu.edu/>SEFCOM</a> at Arizona State University. My research foucses on reverse engineering and decompilation. Meanwhile I am proactively exploring different fields of computer science.'
+description: 'I am a first year PhD student at <a href=https://sefcom.asu.edu/>SEFCOM</a> at Arizona State University. I am interested in reverse engineering and decompilation.'
 keywords:
 author: 'Yibo Liu'
 language: en
@@ -40,7 +40,7 @@ external_link:
   exclude: ''
 filename_case: 0
 render_drafts: false
-post_asset_folder: false
+post_asset_folder: true
 relative_link: false
 future: true
 highlight:
