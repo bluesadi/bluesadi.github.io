@@ -159,6 +159,7 @@ social:
   E-Mail: mailto:yiboliu@asu.edu || fa fa-envelope
   #Weibo: https://weibo.com/yourname || fab fa-weibo
   Twitter: https://twitter.com/34r7hm4n || fab fa-twitter
+  Google Scholar: https://scholar.google.com/citations?hl=en&user=Ckof_x4AAAAJ || fab fa-google-scholar 
   #FB Page: https://www.facebook.com/yourname || fab fa-facebook
   #StackOverflow: https://stackoverflow.com/yourname || fab fa-stack-overflow
   #YouTube: https://youtube.com/yourname || fab fa-youtube
@@ -561,7 +562,7 @@ math:
   every_page: false
 
   mathjax:
-    enable: false
+    enable: true
     # Available values: none | ams | all
     tags: none
 
