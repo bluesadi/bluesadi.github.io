@@ -1,0 +1,514 @@
+/* === Reset & Base === */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: #1a1a2e;
+  --accent: #0066cc;
+  --accent-hover: #0052a3;
+  --text: #333;
+  --text-light: #666;
+  --bg: #ffffff;
+  --bg-alt: #f8f9fa;
+  --border: #e0e0e0;
+  --max-width: 860px;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.7;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* === Navbar === */
+.navbar {
+  background: var(--primary);
+  padding: 0.8rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.nav-container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-brand:hover {
+  color: #ddd;
+}
+
+.nav-links a {
+  color: #ccc;
+  margin-left: 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+  color: #fff;
+}
+
+/* === Content === */
+.content {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+  flex: 1;
+  width: 100%;
+}
+
+/* === Homepage Profile === */
+.profile {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 2.5rem;
+}
+
+.profile-photo {
+  flex-shrink: 0;
+}
+
+.profile-photo img {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.profile-info h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.3rem;
+}
+
+.profile-info .subtitle {
+  font-size: 1.1rem;
+  color: var(--text-light);
+  margin-bottom: 1rem;
+}
+
+.profile-links {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.profile-links a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 102, 204, 0.04);
+}
+
+.profile-links a i {
+  font-size: 1rem;
+}
+
+/* === Sections === */
+.section {
+  margin-bottom: 2.5rem;
+}
+
+.section h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--accent);
+  display: inline-block;
+}
+
+.section h2::after {
+  content: "";
+  display: block;
+}
+
+/* === Research Interests === */
+.interests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.interests span {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+/* === Publications === */
+.pub-list {
+  list-style: none;
+}
+
+.pub-item {
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+}
+
+.pub-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--primary);
+  margin-bottom: 0.2rem;
+}
+
+.pub-authors {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-bottom: 0.15rem;
+}
+
+.pub-authors strong {
+  color: var(--text);
+}
+
+.pub-venue {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--text-light);
+}
+
+.pub-venue .badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* === Experience === */
+.exp-item {
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border);
+}
+
+.exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.exp-header h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.exp-header .date {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+.exp-role {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-style: italic;
+  margin-bottom: 0.3rem;
+}
+
+.exp-item ul {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.exp-item ul li {
+  margin-bottom: 0.2rem;
+}
+
+/* === Projects === */
+.proj-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: box-shadow 0.2s;
+}
+
+.proj-item:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.proj-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.proj-header h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.proj-header h3 a {
+  color: var(--primary);
+}
+
+.proj-header h3 a:hover {
+  color: var(--accent);
+}
+
+.proj-desc {
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+/* === Education === */
+.edu-item {
+  margin-bottom: 1rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border);
+}
+
+.edu-item h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.edu-item .degree {
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+/* === Blog === */
+.blog-list {
+  list-style: none;
+}
+
+.blog-item {
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.blog-item:last-child {
+  border-bottom: none;
+}
+
+.blog-item h3 {
+  font-size: 1.15rem;
+  margin-bottom: 0.3rem;
+}
+
+.blog-item h3 a {
+  color: var(--primary);
+}
+
+.blog-item h3 a:hover {
+  color: var(--accent);
+}
+
+.blog-item time {
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+.blog-item p {
+  font-size: 0.93rem;
+  color: var(--text-light);
+  margin-top: 0.3rem;
+}
+
+.post-tags .tag {
+  display: inline-block;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-right: 0.3rem;
+}
+
+/* === Post === */
+.post-header {
+  margin-bottom: 2rem;
+}
+
+.post-header h1 {
+  font-size: 1.8rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.post-header time {
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.post-content {
+  line-height: 1.8;
+}
+
+.post-content h2 {
+  font-size: 1.4rem;
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+  color: var(--primary);
+}
+
+.post-content h3 {
+  font-size: 1.15rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+  color: var(--primary);
+}
+
+.post-content p {
+  margin-bottom: 1rem;
+}
+
+.post-content code {
+  background: var(--bg-alt);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.post-content pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.post-content pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.post-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.post-content blockquote {
+  border-left: 4px solid var(--accent);
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+  background: var(--bg-alt);
+  border-radius: 0 4px 4px 0;
+}
+
+.post-content ul, .post-content ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+}
+
+/* === Footer === */
+.footer {
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+.footer .container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* === Responsive === */
+@media (max-width: 640px) {
+  .profile {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-links {
+    justify-content: center;
+  }
+
+  .profile-info h1 {
+    font-size: 1.6rem;
+  }
+
+  .exp-header {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .proj-header {
+    flex-direction: column;
+    gap: 0;
+  }
+}
