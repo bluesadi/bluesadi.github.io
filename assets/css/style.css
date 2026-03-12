@@ -175,20 +175,21 @@ a:hover {
   display: block;
 }
 
-/* === Research Interests === */
-.interests {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+
+/* === News === */
+.news-list {
+  list-style: none;
 }
 
-.interests span {
-  background: var(--bg-alt);
-  border: 1px solid var(--border);
-  padding: 0.35rem 0.85rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  color: var(--text);
+.news-list li {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.news-date {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 0.3rem;
 }
 
 /* === Publications === */
@@ -323,23 +324,6 @@ a:hover {
   color: var(--text-light);
 }
 
-/* === Education === */
-.edu-item {
-  margin-bottom: 1rem;
-  padding-left: 1rem;
-  border-left: 3px solid var(--border);
-}
-
-.edu-item h3 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.edu-item .degree {
-  font-size: 0.9rem;
-  color: var(--text-light);
-}
 
 /* === Blog === */
 .blog-list {
