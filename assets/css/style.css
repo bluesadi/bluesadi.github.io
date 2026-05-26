@@ -237,9 +237,9 @@ a:hover {
   color: var(--primary);
 }
 
-.pub-authors .authors-hidden { display: none; }
-.pub-authors.expanded .authors-hidden { display: inline; }
-.pub-authors.expanded .authors-ellipsis { display: none; }
+.pub-authors .authors-full { display: none; }
+.pub-authors.expanded .authors-short { display: none; }
+.pub-authors.expanded .authors-full { display: inline; }
 
 .authors-toggle {
   color: var(--accent);
@@ -252,9 +252,6 @@ a:hover {
 .authors-toggle:hover {
   text-decoration: underline;
 }
-
-.authors-toggle::after { content: '[show all]'; }
-.pub-authors.expanded .authors-toggle::after { content: '[show less]'; }
 
 .pub-venue .badge {
   display: inline-block;
