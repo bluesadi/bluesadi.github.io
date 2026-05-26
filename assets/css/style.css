@@ -226,20 +226,35 @@ a:hover {
   color: var(--text-light);
 }
 
-.pub-links {
-  margin-top: 0.3rem;
-  font-size: 0.85rem;
-}
-
-.pub-links a {
+.pub-pdf {
   color: var(--accent);
   text-decoration: none;
-  margin-right: 0.8rem;
+  margin-left: 0.4rem;
+  font-size: 0.9rem;
 }
 
-.pub-links a:hover {
+.pub-pdf:hover {
+  color: var(--primary);
+}
+
+.pub-authors .authors-hidden { display: none; }
+.pub-authors.expanded .authors-hidden { display: inline; }
+.pub-authors.expanded .authors-ellipsis { display: none; }
+
+.authors-toggle {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.82rem;
+  margin-left: 0.25rem;
+  cursor: pointer;
+}
+
+.authors-toggle:hover {
   text-decoration: underline;
 }
+
+.authors-toggle::after { content: '[show all]'; }
+.pub-authors.expanded .authors-toggle::after { content: '[show less]'; }
 
 .pub-venue .badge {
   display: inline-block;
