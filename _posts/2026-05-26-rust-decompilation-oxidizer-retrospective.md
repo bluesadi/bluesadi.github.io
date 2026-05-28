@@ -9,4 +9,6 @@ In late 2023, I started working on a Rust decompiler that would eventually becom
 
 <!-- more -->
 
-...
+# Background: Decompilation
+
+![alt text](../assets/img/posts/2026-05-26-rust-decompilation-oxidizer-retrospective/image.png)
