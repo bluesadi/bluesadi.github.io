@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 988 110" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img" aria-label="Decompilation pipeline: raw bytes, disassembly, control-flow graph, lift to IR, type recovery, structuring, pseudocode">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#5b7a99"/>
+    </marker>
+  </defs>
+
+  <!-- arrows -->
+  <g stroke="#5b7a99" stroke-width="2" marker-end="url(#arrow)">
+    <line x1="130" y1="63" x2="146" y2="63"/>
+    <line x1="272" y1="63" x2="288" y2="63"/>
+    <line x1="414" y1="63" x2="430" y2="63"/>
+    <line x1="556" y1="63" x2="572" y2="63"/>
+    <line x1="698" y1="63" x2="714" y2="63"/>
+    <line x1="840" y1="63" x2="856" y2="63"/>
+  </g>
+
+  <!-- boxes -->
+  <g fill="#f4f6f8" stroke="#5b7a99" stroke-width="1.5">
+    <rect x="6"   y="36" width="124" height="54" rx="8"/>
+    <rect x="148" y="36" width="124" height="54" rx="8"/>
+    <rect x="290" y="36" width="124" height="54" rx="8"/>
+    <rect x="432" y="36" width="124" height="54" rx="8"/>
+    <rect x="574" y="36" width="124" height="54" rx="8"/>
+    <rect x="716" y="36" width="124" height="54" rx="8"/>
+    <rect x="858" y="36" width="124" height="54" rx="8"/>
+  </g>
+
+  <!-- labels -->
+  <g fill="#1d2733" font-size="14" text-anchor="middle">
+    <text x="68"  y="67">Raw bytes</text>
+    <text x="210" y="67">Disassembly</text>
+    <text x="352" y="60">Control-flow<tspan x="352" dy="16">graph</tspan></text>
+    <text x="494" y="67">Lift to IR</text>
+    <text x="636" y="60">Variable<tspan x="636" dy="16">recovery</tspan></text>
+    <text x="778" y="67">Structuring</text>
+    <text x="920" y="67">Pseudocode</text>
+  </g>
+</svg>
