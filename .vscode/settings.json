@@ -1,5 +1,0 @@
-{
-  "markdown.copyFiles.destination": {
-    "/_posts/**/*.md": "/assets/img/posts/${documentBaseName}/"
-  }
-}
