@@ -23,78 +23,101 @@ Even for C, several of these stages are guesses more than computations. The bina
 
 # Rust Makes It Harder
 
-What changes with Rust is not the pipeline but what each stage was built for. Every mainstream decompiler in use today was developed and tuned against C, and to a lesser extent C++. The choices made inside each stage reflect that, including how memory layout is recovered, how calling conventions are read, how errors are recognized, and how generic code is matched back to its template. When the input binary came from a C-family compiler, the output is good. When it came from Rust, the same stages still run and still produce code, but that code often does not match what the original source looked like. The best-effort gaps that C decompilation already lives with get wider, and Rust adds several of its own.
+What changes with Rust is not the pipeline but what each stage was built for. Every mainstream decompiler in use today was developed and tuned against C, and to a lesser extent C++. The choices made inside each stage reflect that, including how user-defined types are recovered, how calling conventions are recovered, and how errors are recognized. When the input binary came from a C-family compiler, the output is good. When it came from Rust, the same stages still run and still produce code, but that code often does not match what the original source looked like. The best-effort gaps that C decompilation already has with get wider, and Rust adds several of its own.
 
-The stages do not strain equally under Rust. Since there is no single correct answer to recover, it helps to sort the steps by how confidently we can recover one, not just by whether they are solved. For some steps the method is principled and the result is reliable. It is not always exact, but the errors are rare, sit at the instruction level, and are not specific to Rust, so we can treat the result as a solid baseline. For others there is no exact method, but a heuristic gets the common case right, with a known set of cases, often Rust-specific, where it breaks. And for the rest there is no reliable method yet. The information we want is either gone or too ambiguous to pin down.
+The stages do not strain equally under Rust. Since there is no single correct answer to recover, it helps to sort the steps by the kind of method that can recover them. Some are **deterministic**: a fixed algorithm reads the binary and produces a definite answer, and while it is not always exact, the errors are rare, sit at the instruction level, and are not specific to Rust. Some are **deterministic given the types**: once the types are known, a fixed rule recovers them with no further guessing, which pushes all the uncertainty onto recovering the types in the first place. Part of that recovery is a **deterministic heuristic**: a fixed rule that gets the common case right and always returns the same answer, with a known set of cases, often Rust-specific, where it is wrong, like reading which functions came from the standard library or how a function passes its arguments. And the hardest part, including the user-defined types that everything downstream leans on, is only **probabilistic**: no fixed rule recovers it, because the information is either gone or maps back to more than one source, so the best anyone can do is pick the most likely reading.
 
-The rest of this post walks Rust decompilation through these three buckets. That is the most honest way to answer where we are. Some parts are solid, some work well in practice as long as you know the failure modes, and some are still open.
+The rest of this post walks Rust decompilation through these four kinds, from the most certain to the least. Some parts are deterministic and solid, some are deterministic once the types are in hand, the scaffolding those types hang on comes from a heuristic that works in practice as long as you know where it breaks, and the rest, including the types themselves, is probabilistic at best.
 
-# Solidly Recoverable
+# Deterministic
 
-These are the parts where Rust behaves like any other compiled language. The methods here are not perfectly accurate. Disassembly, for one, can still get a handful of instructions wrong on a hard binary. But the accuracy is more than enough in practice and the errors are not specific to Rust, so this is the stable baseline everything else builds on. The section is short for that reason.
+These are the parts a fixed algorithm recovers, where Rust behaves like any other compiled language. The methods here are not perfectly accurate. Disassembly, for one, can still get a handful of instructions wrong on a hard binary. But the accuracy is more than enough in practice and the errors are not specific to Rust, so this is the stable baseline everything else builds on. The section is short for that reason.
 
-The clearest example is disassembly and control-flow recovery. Rust compiles through LLVM, so the machine code it emits looks like the machine code any LLVM-based C or C++ compiler emits. The same disassemblers and CFG builders run on it without changes, and they reach the same accuracy. Jump tables, non-returning functions, and the occasional code-versus-data ambiguity are as hard for Rust as they are for C, and no harder.
+The clearest example is disassembly and control-flow graph recovery. Rust compiles through LLVM, so the machine code it emits looks like the machine code any LLVM-based C or C++ compiler emits. The same disassemblers and CFG recovery run on it without changes, and they reach the same accuracy. It also applies to function boundary identification.
 
-Calling conventions are mostly in this bucket too. Rust does not promise a stable ABI, but for any single binary the compiler still lowers calls onto the platform convention, so where arguments live and how values come back can be read the usual way. The places this gets murky, such as how small aggregates are packed into registers, are shared with C++ and are not unique to Rust.
+# Deterministic given types
 
-Function boundaries round out the list. As long as symbols are present, or the usual prologue and call-target heuristics apply, splitting the binary into functions works as well as it does anywhere else. None of this is where Rust decompilation struggles, which is exactly why it belongs here.
+A surprising amount of Rust-specific recovery is fully deterministic, on one condition: you have to know the types first. Each step below applies a fixed rule to the types it is handed and adds no guessing of its own. That defers an obvious question, where the types come from, and the two sections after this are the answer, one reliable and one not. For now, assume the types are in hand and watch how much follows mechanically.
 
-# Good Heuristics, Known Failure Modes
+## Struct and enum initialization
 
-Here there is no exact method, but a heuristic gets the common case right. For each item the structure is the same: what the standard pipeline expects to see, what Rust actually emits, when the heuristic holds, and when it breaks. This is where Oxidizer does most of its work.
+Once the type of a struct or enum is known, recovering how an instance was built is mechanical. The compiler turns a struct literal into a sequence of field writes at fixed offsets, and Oxidizer groups those writes back into a single initializer by matching each one to a field of the known type. Enums fold back the same way, with the discriminant write and the variant's field writes collapsing into one variant construction. There is no choice to make here. Given the type and the offsets, the grouping is forced. Get the type wrong upstream and the writes group into the wrong shape, but that error belongs to the type step, not this one.
 
-## Struct and field layout
+## Pattern matching and the `?` operator
 
-A C decompiler expects struct fields to sit in memory in the order they were declared. Rust's default representation makes no such promise. The compiler is free to reorder fields to pack them tightly, so the offsets the decompiler reads no longer line up with any source-level order. The heuristic that recovers struct shape from access patterns still works, and the recovered fields are correct, but their order and names are the compiler's, not the programmer's. When a type is declared `repr(C)`, the original order comes back and the output matches what a C decompiler would produce.
+A `match` on an enum compiles into a read of the discriminant and a chain of branches, which a C decompiler shows as raw integer reads and `if`-`else`. Given the recovered enum type, turning that chain back into a `match` or `if let` is deterministic, because the discriminant values map one-to-one onto the named variants. Error handling rides on the same step, since a `match` on a `Result` that returns early on the `Err` variant collapses back into the `?` operator by a fixed rule. None of this guesses, as long as the enum type and its discriminant were recovered.
 
-## Trait objects and dynamic dispatch
+## Deref coercion
 
-When Rust calls a method through a trait object, it uses a fat pointer. One half points at the data, the other half points at a vtable of function pointers. This pattern is regular enough to recognize. Reading the vtable recovers the set of methods a type implements and turns an indirect call back into a named one. The heuristic holds whenever the vtable is laid out in the standard way. It gets harder when the optimizer devirtualizes the call, inlines through it, or merges identical vtables across types, at which point the one-to-one mapping the recovery relies on is gone.
+Rust converts between related reference types on its own. A `&String` passed where a `&str` is expected becomes a `Deref::deref` call, which the compiler often inlines down to a raw pointer-and-length access. Given the pair of types involved, folding that access back to the implicit coercion is a fixed rewrite, so the recovery is deterministic once the types are known. The limit is coverage rather than correctness. The rewrite has to be specified per type pair, and Oxidizer ships the common ones such as `&String` to `&str` and `&Vec` to a slice, so a coercion between types it carries no rule for stays in its lowered form.
 
-## Slices, strings, and other fat pointers
+# Deterministic Heuristic
 
-Slices and string slices are also fat pointers, a data pointer paired with a length. Once you know to look for the pattern, recovering a slice and its length is reliable, and it makes a large fraction of standard-library calls readable. The failure mode is the same as above. When the length is constant-folded away or the pair is split up by optimization, the pattern no longer presents itself cleanly.
+Everything in the previous section assumed the types. Recovering them is the step that does not get to be deterministic, and it comes apart into two halves. The reliable half is here: which functions came from the standard library, and how each function passes its arguments and returns. Both are read by a fixed rule that is usually right. The other half, the actual user-defined types that everything downstream depends on, is where the precision falls apart, and it sits in the section after this one.
 
-# Still Open
+## Rust standard library functions
 
-These are the cases where no reliable method exists today. The information we need was either erased by the compiler or is too ambiguous to recover, and being honest about this is the point of the retrospective.
+Rust links its standard library statically, so in a stripped binary a call to `Vec::push` looks like a call to any other function. The recovery is signature matching. Oxidizer first identifies the compiler version with FLIRT, then matches library functions against a signature set built for that exact version, and applies a database of known standard-library struct and function types on top. When the signatures match, a large amount of otherwise opaque code gets named and typed at once. It breaks when the binary was built with a compiler version you do not have signatures for, when a function was inlined away so there is no separate body to match, or when a function is too simple to be unique. FLIRT masks out the call addresses in a signature, so a function that is just one or two calls looks like every other one under that mask.
 
-## Generics and monomorphization
+## Calling conventions
 
-Rust compiles a generic function by stamping out a separate copy for every concrete type it is used with. By the time the binary exists, there is no generic function left, only a handful of unrelated-looking concrete ones. Recovering the original generic means recognizing that several functions are instantiations of one template and abstracting the type back out, and there is no reliable method for that today. Demangled symbol names help when they survive, since they still spell out the type arguments, but stripped binaries take even that away.
+Reading how a function passes its arguments and hands back its result is a fixed rule, because Rust lowers calls onto the platform ABI even though it does not promise a stable one. Oxidizer reads the prototype this way, including the case where a small struct comes back in registers such as `rax` and `rdx` rather than through a caller-allocated buffer, which it recognizes as a multi-register return. This recovers the shape of the interface, how many arguments a function takes and where its result lives, and it does so reliably. What it does not tell you is what those arguments and results actually are. That is the type question, and it is a different kind of problem, the subject of the next section.
 
-## Iterators, closures, and state machines
+# Probabilistic
 
-A Rust iterator chain is a tower of small generic types that the optimizer fuses into a single loop. A closure becomes an anonymous struct holding its captured variables plus a call. An async function becomes an enum-shaped state machine. In every case the high-level construct is gone and what remains is ordinary loops, structs, and branches. The decompiler can recover those faithfully, but turning them back into the iterator chain or closure the programmer wrote is open.
+These are the cases where no method recovers a reliable answer, because the information was either erased by the compiler or maps back to more than one source. Some of them still run a fixed procedure, but it can do no better than return a likely answer, and some have no handle to grab at all. Either way the honest label is a probabilistic guess, the kind of likelihood a learned model might assign, and saying so is the point of the retrospective.
 
-## Error handling
+## Struct and enum types
 
-Rust's error handling compiles into ordinary control flow. The `?` operator becomes a branch on a returned `Result`, and panics become calls into the unwinding machinery with landing pads scattered through the function. The branches and calls recover correctly, so the behavior is preserved, but the compact source-level shape, a single `?` where the binary shows a match and an early return, does not come back on its own.
+The deterministic-given-types section needed the types, and this is where they were supposed to come from. The honest framing is that recovering a type is a probabilistic problem wearing a deterministic disguise. Rust monomorphizes and erases enough that many distinct types compile to the same layout, so a type is not a fact to read off the binary but a judgment about which type is most likely given the evidence, exactly what a probabilistic method is for. Oxidizer does not use one. It runs inter-procedural prototype inference and a constraint-based solver, a deterministic heuristic, because that is the tractable thing to build, and it still gets the best type recovery among the tools measured. But a fixed rule can only approximate a distribution, and the numbers are the size of the gap: struct precision in the single digits, recall around a third, with enum types, which Oxidizer alone recovers at all, in the same low range. Field order widens it further, since Rust may reorder fields for packing and a wrong guess groups the writes into the wrong shape. The deterministic method is not failing at a deterministic problem, it is standing in for a probabilistic one. That is why types belong here, and it is the floor the whole deterministic-given-types layer rests on.
 
-## Enum layout and niche optimization
+## Generics
 
-Rust does not always store an enum's discriminant as a separate field. When a variant has an unused bit pattern, the compiler reuses it to encode the discriminant, so `Option<&T>` is just a pointer that may be null, and a richer enum may hide its tag inside a field of one of its variants. With no discriminant field to find, recovering the enum and its variants is ambiguous.
+Rust compiles a generic function by stamping out a separate copy for every concrete type it is instantiated with. By the time the binary exists there is no generic left, only a set of concrete functions that happen to share a shape. `core::ptr::drop_in_place::<T>` alone can appear in dozens of versions, one per `T`. Recovering the generic means recognizing that these copies came from one definition and abstracting the type back out, and Oxidizer does not attempt it. It recovers the concrete functions, and for standard-library generics it can lean on signatures, but reconstructing the generic abstraction is left open. Demangled symbols help when they survive, since the names still spell out the type arguments, and stripped binaries take even that away.
 
-## Ownership and lifetimes
+## Traits and dynamic dispatch
 
-Ownership, borrowing, and lifetimes are checked entirely at compile time and have no runtime representation at all. There is nothing in the binary to recover them from, by design. This one is not so much open as closed in the other direction. The information is provably not there.
+A call through a trait object goes indirectly, through a vtable of function pointers reached from the second half of a fat pointer. The information needed to name the trait and bind the call back to a concrete method is spread across the vtable, the type that owns it, and the call site, and the optimizer is free to devirtualize, inline, or merge vtables on the way. Oxidizer does not recover traits, and no tool measured does. What you get is an indirect call through a pointer, faithful to the binary but silent about the trait the programmer wrote.
+
+## Closures
+
+A closure compiles into an anonymous struct that holds the variables it captured, plus an ordinary function that takes that struct as an argument. Iterators and `async` functions are built the same way, a tower of small generated types that the optimizer fuses into a plain loop or an enum-shaped state machine. The loop, the struct, and the branches all recover correctly, so behavior is preserved, but the closure or the iterator chain the programmer wrote is gone and there is no reliable way back. Oxidizer recovers the underlying code and leaves the abstraction alone, the same as it does for generics and traits.
+
+## Macros
+
+A macro is arbitrary code generation. It matches a token pattern and expands into whatever code the macro author wrote, so by the time it reaches the binary there is no fixed shape to invert. Recovering the original call means recognizing that some block of code was generated rather than written, and in general that is a probabilistic judgment rather than a rule. Oxidizer does carve off a deterministic slice of the problem: the standard-library macros such as `println!`, `format!`, and `panic!` expand in known ways, so it outlines those recognized expansions back into a call. Even with the whole standard library covered, that is only about a tenth of the macros in the dataset, and the rest, especially user-defined macros and anything compiler optimization has reshaped, offer no fixed handle to grab.
+
+## Enums the compiler hid completely
+
+The previous section recovers an enum as long as its discriminant is somewhere to be read. When every variant fits without a spare field, the compiler stops storing a discriminant at all and folds it into an unused bit pattern, so `Option<&T>` becomes a single pointer that encodes `None` as null. There is no tag to find, and the layout is indistinguishable from a plain nullable pointer or integer. The paper names this directly as a limitation. A fully niche-optimized enum cannot be told apart from the raw value it was packed into.
+
+## When the binary is honestly ambiguous
+
+Some cases have no deterministic answer even in principle. A function that returns a struct can look identical to one that returns an enum of two same-size variants, because at the machine level both write the same bytes into the same slot. Recovering some function argument types runs into the same wall, and Oxidizer leaves a few unrecovered for exactly this reason. This is the floor the opening of the post was pointing at. Where two source constructs compile to the same code, no decompiler recovers which one was written, only a plausible one.
+
+## Tied to one compiler
+
+The last open problem is not about any single construct but about how the recovery is built. The heuristics encode what one `rustc` version does, so they depend on type databases regenerated per version, and a change in code generation, enum layout, or the unstable ABI can move the ground under them. Compiler optimization makes it worse, leaving stray `goto`s and reshaping the very expansions that macro and string recovery look for. Reverting optimization before structuring is known to help for C, and doing the same for Rust is still future work.
 
 # Where Are We, Then
 
-Putting the three buckets side by side gives a rough map of where Rust decompilation stands today.
+Putting the four kinds side by side gives a rough map of where Rust decompilation stands today.
 
-| Concern | Bucket | Why |
+| Concern | Method | Why |
 | --- | --- | --- |
-| Disassembly, CFG, calling conventions | Solidly recoverable | LLVM output, no different from C |
-| Struct and field layout | Good heuristic | Recovered from access patterns, order is the compiler's |
-| Trait objects, dynamic dispatch | Good heuristic | Vtable pattern is recognizable until the optimizer hides it |
-| Slices, strings, fat pointers | Good heuristic | Pointer-plus-length pattern is reliable when intact |
-| Generics, monomorphization | Still open | No reliable way to merge instantiations back to a template |
-| Iterators, closures, async | Still open | The high-level construct is fused away into plain loops and structs |
-| Error-handling shape | Still open | Behavior is preserved, the compact `?` form is not |
-| Enum niche optimization | Still open | No discriminant field to recover the variants from |
-| Ownership, lifetimes | Gone by design | No runtime representation exists |
+| Disassembly, CFG, function boundaries | Deterministic | LLVM output, boundary-finding is no different from C |
+| Struct and enum initialization | Deterministic given types | Field writes group into the known type by a fixed rule |
+| Pattern matching and `?` | Deterministic given types | Discriminant values map one-to-one onto named variants |
+| Deref coercion | Deterministic given types | Folded back per type pair once the types are known |
+| Standard-library function identification | Deterministic heuristic | Per-version signature matching, fails on unknown versions or inlining |
+| Calling conventions | Deterministic heuristic | ABI read by a fixed rule, recovers the interface shape not the types |
+| Struct and enum types | Probabilistic | A likelihood judgment at heart, approximated by a deterministic rule at single-digit precision |
+| Generics, traits, closures | Probabilistic | Not attempted, the abstraction is gone from the binary |
+| Macros | Probabilistic | Arbitrary expansion, only the known standard ones outline back |
+| Fully niche-optimized enums | Probabilistic | No stored discriminant, indistinguishable from a raw value |
+| Struct-vs-enum returns, some argument types | Probabilistic | No deterministic answer at the machine level |
+| Compiler-version and optimization fragility | Probabilistic | Heuristics tied to one rustc, optimization adds noise |
 
-The shape of the map is the honest answer to the question in the title. The base of the pipeline is solid, a useful middle layer works as long as you know its failure modes, and the parts that make Rust feel like Rust, generics, iterators, and rich enums, are still mostly out of reach. That is the gap between getting into S&P and having the decompiler I actually wanted.
+The shape of the map is the honest answer to the question in the title. The base of the pipeline is deterministic and solid. A wide band above it is deterministic too, but only once the types are known, so it is exactly as good as the type recovery feeding it. And type recovery is a probabilistic problem at heart, one Oxidizer can only approximate with a deterministic rule, at single-digit precision on the structs and enums everything downstream depends on, so the reliable parts of the pipeline are standing on a probabilistic floor. The abstractions that make Rust feel like Rust, generics, traits, and closures, sit further out on that same floor, where no fixed rule reaches them at all. That is the gap between getting into S&P and having the decompiler I actually wanted.
 
-If I had to pick where the next gains are, it is the middle bucket more than the open one. The open problems are open for deep reasons, some of them provable, like ownership leaving no trace. The heuristic cases are where a Rust-aware tool can still move the needle, by encoding what the Rust compiler actually does instead of what a C compiler would have done. That is the bet Oxidizer is making, and it is where I think Rust decompilation goes next.
+If I had to say where the next gains are, it is type recovery, full stop. So much of the pipeline is already deterministic given the types that lifting their precision would lift everything above it at once. It is a probabilistic problem and a genuinely hard one, since Rust erases enough that different types share a layout, but it is not the deepest kind of hard, the kind where two constructs compile to the very same bytes by definition. There is room to make the guess better, by encoding what the Rust compiler actually does instead of what a C compiler would have done, and by pushing the recovery to survive a change of compiler version. That is the bet Oxidizer makes, and it is where I think Rust decompilation goes next.
